@@ -1,1 +1,1 @@
-# 코로나 19 대시보드 사이드 프로젝트
+Covid 19 Dashboard side project
