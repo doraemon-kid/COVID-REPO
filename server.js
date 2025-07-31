@@ -6,6 +6,8 @@ var ejs = require('ejs')
 var morgan = require('morgan')
 const fileUpload = require('express-fileupload');
 var config = require('./config/server')
+const helmet = require('helmet');
+const csurf = require('csurf');
 
 //Initialize Express
 var app = express()
@@ -19,12 +21,18 @@ app.use(fileUpload());
 // Enable for Reverse proxy support
 // app.set('trust proxy', 1) 
 
+// Use Helmet to secure Express apps by setting various HTTP headers
+app.use(helmet());
+
+// CSRF protection
+app.use(csurf());
+
 // Intialize Session
 app.use(session({
-  secret: 'keyboard cat',
+  secret: process.env.SESSION_SECRET || 'default_secret', // Use environment variable for secret
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false }
+  cookie: { secure: true } // Set secure to true
 }))
 
 // Initialize Passport
