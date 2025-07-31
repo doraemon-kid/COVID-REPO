@@ -1,6 +1,14 @@
 var router = require('express').Router()
 var vulnDict = require('../config/vulns')
 var authHandler = require('../core/authHandler')
+var rateLimit = require('express-rate-limit')
+
+// Define rate limiter for authentication routes
+const authLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 100, // Limit each IP to 100 requests per windowMs
+	message: 'Too many requests, please try again later.'
+})
 
 module.exports = function (passport) {
 	router.get('/', authHandler.isAuthenticated, function (req, res) {
@@ -11,7 +19,7 @@ module.exports = function (passport) {
 		res.render('login')
 	})
 
-	router.get('/learn/vulnerability/:vuln', authHandler.isAuthenticated, function (req, res) {
+	router.get('/learn/vulnerability/:vuln', authHandler.isAuthenticated, generalLimiter, function (req, res) {
 		res.render('vulnerabilities/layout', {
 			vuln: req.params.vuln,
 			vuln_title: vulnDict[req.params.vuln],
@@ -29,7 +37,7 @@ module.exports = function (passport) {
 		})
 	})
 
-	router.get('/learn', authHandler.isAuthenticated, function (req, res) {
+	router.get('/learn', authHandler.isAuthenticated, generalLimiter, function (req, res) {
 		res.render('learn',{vulnerabilities:vulnDict})
 	})
 
@@ -48,21 +56,21 @@ module.exports = function (passport) {
 
 	router.get('/resetpw', authHandler.resetPw)
 
-	router.post('/login', passport.authenticate('login', {
+	router.post('/login', loginLimiter, passport.authenticate('login', {
 		successRedirect: '/learn',
 		failureRedirect: '/login',
 		failureFlash: true
 	}))
 
-	router.post('/register', passport.authenticate('signup', {
+	router.post('/register', authLimiter, passport.authenticate('signup', {
 		successRedirect: '/learn',
 		failureRedirect: '/register',
 		failureFlash: true
 	}))
 
-	router.post('/forgotpw', authHandler.forgotPw)
+	router.post('/forgotpw', authLimiter, authHandler.forgotPw)
 
-	router.post('/resetpw', authHandler.resetPwSubmit)
+	router.post('/resetpw', authLimiter, authHandler.resetPwSubmit)
 
 	return router
 }
