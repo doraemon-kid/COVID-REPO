@@ -3,13 +3,14 @@ var appHandler = require('../core/appHandler')
 var authHandler = require('../core/authHandler')
 var rateLimit = require('express-rate-limit')
 
-// Define rate limiting middleware
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100 // limit each IP to 100 requests per windowMs
 })
 
 module.exports = function () {
+    router.use(limiter) // Apply the rate limiter to all routes
+
     router.get('/', authHandler.isAuthenticated, function (req, res) {
         res.redirect('/learn')
     })

@@ -32,7 +32,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'default_secret', // Use environment variable for secret
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: true } // Set secure to true
+  cookie: { secure: true } // Enforce SSL encryption for cookies
 }))
 
 // Initialize Passport
