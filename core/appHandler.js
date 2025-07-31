@@ -7,9 +7,9 @@ var serialize = require("node-serialize")
 const Op = db.Sequelize.Op
 
 module.exports.userSearch = function (req, res) {
-	var query = "SELECT name,id FROM Users WHERE login=?";
+	var query = "SELECT name,id FROM Users WHERE login=:login";
 	db.sequelize.query(query, {
-		replacements: [req.body.login], // Use parameterized query
+		replacements: { login: req.body.login },
 		model: db.User
 	}).then(user => {
 		if (user.length) {
@@ -186,9 +186,13 @@ module.exports.userEditSubmit = function (req, res) {
 }
 
 module.exports.redirect = function (req, res) {
-	const url = req.query.url;
-	if (url && url.startsWith('http')) { // Validate URL
-		res.redirect(url)
+	if (req.query.url) {
+		const allowedUrls = ['https://example.com', 'https://anotherexample.com'];
+		if (allowedUrls.includes(req.query.url)) {
+			res.redirect(req.query.url)
+		} else {
+			res.send('invalid redirect url')
+		}
 	} else {
 		res.send('invalid redirect url')
 	}
