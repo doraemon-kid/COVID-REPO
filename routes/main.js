@@ -19,7 +19,7 @@ module.exports = function (passport) {
 		res.render('login')
 	})
 
-	router.get('/learn/vulnerability/:vuln', authHandler.isAuthenticated, function (req, res) {
+	router.get('/learn/vulnerability/:vuln', authHandler.isAuthenticated, generalLimiter, function (req, res) {
 		res.render('vulnerabilities/layout', {
 			vuln: req.params.vuln,
 			vuln_title: vulnDict[req.params.vuln],
@@ -37,7 +37,7 @@ module.exports = function (passport) {
 		})
 	})
 
-	router.get('/learn', authHandler.isAuthenticated, function (req, res) {
+	router.get('/learn', authHandler.isAuthenticated, generalLimiter, function (req, res) {
 		res.render('learn',{vulnerabilities:vulnDict})
 	})
 
@@ -56,7 +56,7 @@ module.exports = function (passport) {
 
 	router.get('/resetpw', authHandler.resetPw)
 
-	router.post('/login', authLimiter, passport.authenticate('login', {
+	router.post('/login', loginLimiter, passport.authenticate('login', {
 		successRedirect: '/learn',
 		failureRedirect: '/login',
 		failureFlash: true
