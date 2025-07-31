@@ -7,8 +7,9 @@ var serialize = require("node-serialize")
 const Op = db.Sequelize.Op
 
 module.exports.userSearch = function (req, res) {
-	var query = "SELECT name,id FROM Users WHERE login='" + req.body.login + "'";
+	var query = "SELECT name,id FROM Users WHERE login=?";
 	db.sequelize.query(query, {
+		replacements: [req.body.login], // Use parameterized query
 		model: db.User
 	}).then(user => {
 		if (user.length) {
@@ -36,7 +37,8 @@ module.exports.userSearch = function (req, res) {
 }
 
 module.exports.ping = function (req, res) {
-	exec('ping -c 2 ' + req.body.address, function (err, stdout, stderr) {
+	const address = req.body.address.replace(/[^a-zA-Z0-9.-]/g, ''); // Sanitize input
+	exec('ping -c 2 ' + address, function (err, stdout, stderr) {
 		output = stdout + stderr
 		res.render('app/ping', {
 			output: output
@@ -59,7 +61,7 @@ module.exports.productSearch = function (req, res) {
 	db.Product.findAll({
 		where: {
 			name: {
-				[Op.like]: '%' + req.body.name + '%'
+				[Op.like]: '%' + req.body.name.replace(/[%_]/g, '\\$&') + '%' // Escape special characters
 			}
 		}
 	}).then(products => {
@@ -184,8 +186,9 @@ module.exports.userEditSubmit = function (req, res) {
 }
 
 module.exports.redirect = function (req, res) {
-	if (req.query.url) {
-		res.redirect(req.query.url)
+	const url = req.query.url;
+	if (url && url.startsWith('http')) { // Validate URL
+		res.redirect(url)
 	} else {
 		res.send('invalid redirect url')
 	}
@@ -193,9 +196,16 @@ module.exports.redirect = function (req, res) {
 
 module.exports.calc = function (req, res) {
 	if (req.body.eqn) {
-		res.render('app/calc', {
-			output: mathjs.eval(req.body.eqn)
-		})
+		try {
+			const result = mathjs.evaluate(req.body.eqn); // Use safe evaluate
+			res.render('app/calc', {
+				output: result
+			})
+		} catch (err) {
+			res.render('app/calc', {
+				output: 'Invalid equation'
+			})
+		}
 	} else {
 		res.render('app/calc', {
 			output: 'Enter a valid math string like (3+3)*2'
@@ -215,16 +225,20 @@ module.exports.listUsersAPI = function (req, res) {
 module.exports.bulkProductsLegacy = function (req,res){
 	// TODO: Deprecate this soon
 	if(req.files.products){
-		var products = serialize.unserialize(req.files.products.data.toString('utf8'))
-		products.forEach( function (product) {
-			var newProduct = new db.Product()
-			newProduct.name = product.name
-			newProduct.code = product.code
-			newProduct.tags = product.tags
-			newProduct.description = product.description
-			newProduct.save()
-		})
-		res.redirect('/app/products')
+		try {
+			var products = JSON.parse(req.files.products.data.toString('utf8')) // Use JSON.parse instead of unsafe deserialization
+			products.forEach( function (product) {
+				var newProduct = new db.Product()
+				newProduct.name = product.name
+				newProduct.code = product.code
+				newProduct.tags = product.tags
+				newProduct.description = product.description
+				newProduct.save()
+			})
+			res.redirect('/app/products')
+		} catch (err) {
+			res.render('app/bulkproducts',{messages:{danger:'Invalid file'},legacy:true})
+		}
 	}else{
 		res.render('app/bulkproducts',{messages:{danger:'Invalid file'},legacy:true})
 	}
@@ -232,16 +246,20 @@ module.exports.bulkProductsLegacy = function (req,res){
 
 module.exports.bulkProducts =  function(req, res) {
 	if (req.files.products && req.files.products.mimetype=='text/xml'){
-		var products = libxmljs.parseXmlString(req.files.products.data.toString('utf8'), {noent:true,noblanks:true})
-		products.root().childNodes().forEach( product => {
-			var newProduct = new db.Product()
-			newProduct.name = product.childNodes()[0].text()
-			newProduct.code = product.childNodes()[1].text()
-			newProduct.tags = product.childNodes()[2].text()
-			newProduct.description = product.childNodes()[3].text()
-			newProduct.save()
-		})
-		res.redirect('/app/products')
+		try {
+			var products = libxmljs.parseXmlString(req.files.products.data.toString('utf8'), {noent:false,noblanks:true}) // Disable external entity expansion
+			products.root().childNodes().forEach( product => {
+				var newProduct = new db.Product()
+				newProduct.name = product.childNodes()[0].text()
+				newProduct.code = product.childNodes()[1].text()
+				newProduct.tags = product.childNodes()[2].text()
+				newProduct.description = product.childNodes()[3].text()
+				newProduct.save()
+			})
+			res.redirect('/app/products')
+		} catch (err) {
+			res.render('app/bulkproducts',{messages:{danger:'Invalid XML'},legacy:false})
+		}
 	}else{
 		res.render('app/bulkproducts',{messages:{danger:'Invalid file'},legacy:false})
 	}

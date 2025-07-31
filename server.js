@@ -24,7 +24,7 @@ app.use(session({
   secret: 'keyboard cat',
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false }
+  cookie: { secure: true } // Enforce SSL encryption for cookies
 }))
 
 // Initialize Passport
